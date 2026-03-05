@@ -1,11 +1,407 @@
 <!-- Content of calculator.html -->
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Calculator</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Calculator</title>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Syne:wght@400;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d0d0f;
+      --surface: #141418;
+      --panel: #1b1b22;
+      --border: #2a2a38;
+      --accent: #e8ff47;
+      --accent-dim: #b5c930;
+      --text: #f0f0f0;
+      --muted: #606070;
+      --op-bg: #1f1f2e;
+      --op-hover: #2c2c42;
+      --eq-bg: #e8ff47;
+      --eq-text: #0d0d0f;
+      --danger: #ff5f5f;
+    }
+
+    body {
+      min-height: 100vh;
+      background: var(--bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Syne', sans-serif;
+      background-image:
+        radial-gradient(circle at 20% 30%, rgba(232,255,71,0.04) 0%, transparent 50%),
+        radial-gradient(circle at 80% 70%, rgba(100,80,255,0.05) 0%, transparent 50%);
+    }
+
+    .calc-wrapper {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      animation: rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(30px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .calc {
+      width: 340px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow:
+        0 0 0 1px rgba(232,255,71,0.06),
+        0 40px 80px rgba(0,0,0,0.6),
+        0 2px 4px rgba(0,0,0,0.4);
+    }
+
+    /* --- Header bar --- */
+    .calc-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 18px 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    .calc-header .label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .dot-row { display: flex; gap: 6px; }
+    .dot {
+      width: 9px; height: 9px;
+      border-radius: 50%;
+      background: var(--border);
+    }
+    .dot:nth-child(1) { background: #ff5f57; }
+    .dot:nth-child(2) { background: #febc2e; }
+    .dot:nth-child(3) { background: #28c840; }
+
+    /* --- Display --- */
+    .display {
+      padding: 20px 22px 16px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+    }
+    .expression {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 12px;
+      color: var(--muted);
+      min-height: 18px;
+      text-align: right;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-bottom: 6px;
+      letter-spacing: 0.05em;
+    }
+    .result {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 42px;
+      color: var(--text);
+      text-align: right;
+      letter-spacing: -0.02em;
+      line-height: 1;
+      min-height: 50px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      transition: color 0.15s;
+    }
+    .result.flash { color: var(--accent); }
+
+    /* --- Buttons grid --- */
+    .buttons {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1px;
+      background: var(--border);
+      border-top: 1px solid var(--border);
+    }
+
+    button {
+      all: unset;
+      cursor: pointer;
+      background: var(--surface);
+      color: var(--text);
+      font-family: 'Syne', sans-serif;
+      font-size: 17px;
+      font-weight: 600;
+      height: 72px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      transition: background 0.1s, color 0.1s, transform 0.08s;
+      user-select: none;
+    }
+
+    button:active { transform: scale(0.93); }
+
+    button.op {
+      background: var(--op-bg);
+      color: var(--accent);
+      font-size: 20px;
+    }
+    button.op:hover { background: var(--op-hover); }
+
+    button.clear {
+      background: var(--op-bg);
+      color: var(--danger);
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+    }
+    button.clear:hover { background: rgba(255,95,95,0.1); }
+
+    button.backspace {
+      background: var(--op-bg);
+      color: var(--muted);
+    }
+    button.backspace:hover { background: var(--op-hover); color: var(--text); }
+
+    button.equals {
+      background: var(--eq-bg);
+      color: var(--eq-text);
+      font-size: 22px;
+      font-weight: 800;
+    }
+    button.equals:hover { background: var(--accent-dim); }
+
+    button.zero {
+      grid-column: span 2;
+      justify-content: flex-start;
+      padding-left: 28px;
+    }
+
+    button.num:hover { background: #1f1f27; }
+
+    /* ripple */
+    button::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: rgba(255,255,255,0.04);
+      opacity: 0;
+      transition: opacity 0.15s;
+      border-radius: inherit;
+    }
+    button:active::after { opacity: 1; }
+
+    /* --- Footer --- */
+    .calc-footer {
+      padding: 10px 18px;
+      text-align: center;
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      border-top: 1px solid var(--border);
+    }
+    .calc-footer span { color: var(--accent); }
+  </style>
 </head>
 <body>
-    <h1>Simple Calculator</h1>
-    <!-- Calculator functionality here -->
+
+<div class="calc-wrapper">
+  <div class="calc">
+    <div class="calc-header">
+      <div class="label">CALC v1.0</div>
+      <div class="dot-row">
+        <div class="dot"></div>
+        <div class="dot"></div>
+        <div class="dot"></div>
+      </div>
+    </div>
+
+    <div class="display">
+      <div class="expression" id="expression"></div>
+      <div class="result" id="result">0</div>
+    </div>
+
+    <div class="buttons">
+      <!-- Row 1 -->
+      <button class="clear" onclick="clearAll()">AC</button>
+      <button class="backspace" onclick="backspace()">⌫</button>
+      <button class="op" onclick="inputOp('%')">%</button>
+      <button class="op" onclick="inputOp('/')">÷</button>
+
+      <!-- Row 2 -->
+      <button class="num" onclick="inputNum('7')">7</button>
+      <button class="num" onclick="inputNum('8')">8</button>
+      <button class="num" onclick="inputNum('9')">9</button>
+      <button class="op" onclick="inputOp('*')">×</button>
+
+      <!-- Row 3 -->
+      <button class="num" onclick="inputNum('4')">4</button>
+      <button class="num" onclick="inputNum('5')">5</button>
+      <button class="num" onclick="inputNum('6')">6</button>
+      <button class="op" onclick="inputOp('-')">−</button>
+
+      <!-- Row 4 -->
+      <button class="num" onclick="inputNum('1')">1</button>
+      <button class="num" onclick="inputNum('2')">2</button>
+      <button class="num" onclick="inputNum('3')">3</button>
+      <button class="op" onclick="inputOp('+')">+</button>
+
+      <!-- Row 5 -->
+      <button class="num zero" onclick="inputNum('0')">0</button>
+      <button class="num" onclick="inputDot()">.</button>
+      <button class="equals" onclick="calculate()">=</button>
+    </div>
+
+    <div class="calc-footer">Chukwudi's <span>CALC</span></div>
+  </div>
+</div>
+
+<script>
+  let current = '0';
+  let expression = '';
+  let justCalc = false;
+
+  const resultEl = document.getElementById('result');
+  const exprEl   = document.getElementById('expression');
+
+  function updateDisplay() {
+    resultEl.textContent = current;
+    // Shrink font if too long
+    resultEl.style.fontSize = current.length > 10 ? '26px' : current.length > 7 ? '34px' : '42px';
+    exprEl.textContent = expression;
+  }
+
+  function inputNum(n) {
+    if (justCalc) { current = n; expression = ''; justCalc = false; }
+    else current = (current === '0') ? n : current + n;
+    updateDisplay();
+  }
+
+  function inputDot() {
+    if (justCalc) { current = '0.'; expression = ''; justCalc = false; }
+    else if (!current.includes('.')) current += '.';
+    updateDisplay();
+  }
+
+  function inputOp(op) {
+    justCalc = false;
+    const symbols = { '/': '÷', '*': '×', '-': '−', '+': '+', '%': '%' };
+    expression = (expression || current) + ' ' + (symbols[op] || op) + ' ';
+    // Store real op for eval
+    expression._realOp = op;
+    // We build a "real expression" separately
+    if (!window._expr) window._expr = current;
+    else if (!justCalc) window._expr += op + current;
+    window._expr += op;
+    current = '0';
+    updateDisplay();
+  }
+
+  // Cleaner approach: maintain a proper expression string
+  let _expr = '';
+  let _display = '';
+
+  function clearAll() {
+    _expr = ''; _display = '';
+    current = '0'; expression = ''; justCalc = false;
+    updateDisplay();
+  }
+
+  function backspace() {
+    if (justCalc) return;
+    current = current.length > 1 ? current.slice(0, -1) : '0';
+    updateDisplay();
+  }
+
+  // Rebuild with a clean eval model
+  let memory = { value: null, op: null };
+
+  function inputOp(op) {
+    justCalc = false;
+    const display = { '/': '÷', '*': '×', '-': '−', '+': '+', '%': '%' };
+
+    if (memory.op && !justCalc) {
+      // chain: evaluate previous
+      const result = compute(memory.value, op === '%' ? parseFloat(current)/100 : parseFloat(current), memory.op);
+      current = format(result);
+    }
+
+    memory.value = parseFloat(current);
+    memory.op = op;
+    expression = current + ' ' + (display[op] || op);
+    current = '0';
+    updateDisplay();
+  }
+
+  function inputNum(n) {
+    if (justCalc) { current = n; expression = ''; memory = { value: null, op: null }; justCalc = false; }
+    else current = (current === '0') ? n : current + n;
+    updateDisplay();
+  }
+
+  function inputDot() {
+    if (justCalc) { current = '0.'; expression = ''; memory = { value: null, op: null }; justCalc = false; }
+    else if (!current.includes('.')) current += '.';
+    updateDisplay();
+  }
+
+  function calculate() {
+    if (memory.op === null) return;
+    const a = memory.value;
+    const b = memory.op === '%' ? a * parseFloat(current) / 100 : parseFloat(current);
+    const display = { '/': '÷', '*': '×', '-': '−', '+': '+', '%': '%' };
+    expression = memory.value + ' ' + (display[memory.op] || memory.op) + ' ' + current + ' =';
+    const res = compute(a, b, memory.op);
+    current = format(res);
+    flash();
+    justCalc = true;
+    memory = { value: null, op: null };
+    updateDisplay();
+  }
+
+  function compute(a, b, op) {
+    switch(op) {
+      case '+': return a + b;
+      case '-': return a - b;
+      case '*': return a * b;
+      case '/': return b === 0 ? NaN : a / b;
+      case '%': return a * b / 100;
+    }
+  }
+
+  function format(n) {
+    if (isNaN(n)) return 'Error';
+    if (!isFinite(n)) return '∞';
+    // Avoid floating point noise
+    const s = parseFloat(n.toPrecision(10)).toString();
+    return s;
+  }
+
+  function flash() {
+    resultEl.classList.add('flash');
+    setTimeout(() => resultEl.classList.remove('flash'), 300);
+  }
+
+  // Keyboard support
+  document.addEventListener('keydown', e => {
+    if (e.key >= '0' && e.key <= '9') inputNum(e.key);
+    else if (e.key === '.') inputDot();
+    else if (e.key === '+') inputOp('+');
+    else if (e.key === '-') inputOp('-');
+    else if (e.key === '*') inputOp('*');
+    else if (e.key === '/') { e.preventDefault(); inputOp('/'); }
+    else if (e.key === '%') inputOp('%');
+    else if (e.key === 'Enter' || e.key === '=') calculate();
+    else if (e.key === 'Backspace') backspace();
+    else if (e.key === 'Escape' || e.key === 'c' || e.key === 'C') clearAll();
+  });
+</script>
 </body>
 </html>
